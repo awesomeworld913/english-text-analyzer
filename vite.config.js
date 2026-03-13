@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
-  base: './',
+  base: '/english-text-analyzer/',
   plugins: [react(), tailwindcss()],
   server: {
     allowedHosts: true,
