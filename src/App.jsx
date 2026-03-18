@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import TextInput from './components/TextInput';
 import AnalysisResults from './components/AnalysisResults';
 import AnalysisHistory from './components/AnalysisHistory';
@@ -14,6 +14,8 @@ function App() {
   const [selectedUnit, setSelectedUnit] = useState('');
   const [currentText, setCurrentText] = useState('');
   const [history, setHistory] = useState([]);
+  const [batchProcessing, setBatchProcessing] = useState(false);
+  const batchFileRef = useRef(null);
 
   const handleAnalyze = (text) => {
     setCurrentText(text);
@@ -28,6 +30,9 @@ function App() {
     // 이력에 추가
     if (analysisResults) {
       const preview = text.trim().slice(0, 40) + (text.trim().length > 40 ? '...' : '');
+      const studyWordsList = analysisResults.studyWords
+        ? analysisResults.studyWords.map(w => w.word).join(', ')
+        : '';
       setHistory(prev => [...prev, {
         id: Date.now(),
         preview,
@@ -36,6 +41,7 @@ function App() {
         avgSentenceLength: analysisResults.passageStats.avgSentenceLength,
         lexile: analysisResults.lexileScore.label,
         arLevel: analysisResults.arLevel.level,
+        studyWords: studyWordsList,
       }]);
     }
 
@@ -48,6 +54,89 @@ function App() {
       setCurriculumResult(null);
     }
   };
+
+  const handleBatchUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setBatchProcessing(true);
+
+    try {
+      let text = '';
+      if (file.name.endsWith('.csv') || file.name.endsWith('.tsv') || file.name.endsWith('.txt')) {
+        text = await file.text();
+      } else {
+        alert('CSV, TSV, TXT 파일만 지원됩니다.');
+        setBatchProcessing(false);
+        return;
+      }
+
+      const separator = file.name.endsWith('.tsv') ? '\t' : ',';
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+      // 첫 줄이 헤더인지 확인 (영어 지문이 아닌 경우 헤더로 간주)
+      let startIdx = 0;
+      const firstLine = lines[0]?.toLowerCase() || '';
+      if (firstLine.includes('passage') || firstLine.includes('text') || firstLine.includes('지문')) {
+        startIdx = 1;
+      }
+
+      const newHistory = [];
+      for (let i = startIdx; i < lines.length; i++) {
+        // CSV에서 따옴표로 감싸진 셀 처리
+        let passage = lines[i];
+        // 구분자가 있으면 첫 번째 열만 또는 가장 긴 열 사용
+        if (passage.includes(separator)) {
+          const cells = parseCSVLine(passage, separator);
+          // 가장 긴 셀을 지문으로 사용
+          passage = cells.reduce((a, b) => a.length >= b.length ? a : b, '');
+        }
+        // 따옴표 제거
+        passage = passage.replace(/^["']|["']$/g, '').trim();
+        if (!passage || passage.length < 10) continue;
+
+        const result = analyze(passage);
+        if (result) {
+          const preview = passage.slice(0, 40) + (passage.length > 40 ? '...' : '');
+          const studyWordsList = result.studyWords
+            ? result.studyWords.map(w => w.word).join(', ')
+            : '';
+          newHistory.push({
+            id: Date.now() + i,
+            preview,
+            wordCount: result.passageStats.wordCount,
+            sentenceCount: result.passageStats.sentenceCount,
+            avgSentenceLength: result.passageStats.avgSentenceLength,
+            lexile: result.lexileScore.label,
+            arLevel: result.arLevel.level,
+            studyWords: studyWordsList,
+          });
+        }
+      }
+
+      setHistory(prev => [...prev, ...newHistory]);
+      alert(`${newHistory.length}개 지문 분석 완료!`);
+    } catch (err) {
+      console.error('Batch upload error:', err);
+      alert('파일 처리 중 오류가 발생했습니다.');
+    } finally {
+      setBatchProcessing(false);
+      if (batchFileRef.current) batchFileRef.current.value = '';
+    }
+  };
+
+  // 간단한 CSV 라인 파서 (따옴표 내 구분자 처리)
+  function parseCSVLine(line, sep) {
+    const cells = [];
+    let current = '';
+    let inQuotes = false;
+    for (const ch of line) {
+      if (ch === '"') { inQuotes = !inQuotes; continue; }
+      if (ch === sep && !inQuotes) { cells.push(current.trim()); current = ''; continue; }
+      current += ch;
+    }
+    cells.push(current.trim());
+    return cells;
+  }
 
   const handleUnitChange = (e) => {
     const value = e.target.value;
@@ -111,6 +200,36 @@ function App() {
               </div>
 
               <TextInput onAnalyze={handleAnalyze} />
+
+              {/* 일괄 업로드 */}
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  일괄 분석 (CSV/TSV 업로드)
+                </label>
+                <p className="text-xs text-gray-400 mb-2">
+                  지문을 한 줄에 하나씩, 또는 CSV/TSV 파일로 업로드하면 일괄 분석합니다.
+                </p>
+                <label
+                  className={`flex items-center justify-center gap-2 py-2.5 px-4 border-2 border-dashed rounded-xl text-sm transition-colors cursor-pointer ${
+                    batchProcessing
+                      ? 'border-gray-200 text-gray-400 cursor-wait'
+                      : 'border-emerald-300 text-emerald-600 hover:border-emerald-400 hover:text-emerald-700'
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  {batchProcessing ? '분석 중...' : 'CSV/TSV 파일로 일괄 분석'}
+                  <input
+                    ref={batchFileRef}
+                    type="file"
+                    accept=".csv,.tsv,.txt"
+                    onChange={handleBatchUpload}
+                    disabled={batchProcessing}
+                    className="hidden"
+                  />
+                </label>
+              </div>
             </div>
           </div>
 

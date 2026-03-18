@@ -1,6 +1,6 @@
 export default function AnalysisHistory({ history, onClear, onRemove }) {
   const handleDownloadTSV = () => {
-    const headers = ['No', '지문', '단어수', '문장수', '평균문장길이', 'Lexile', 'AR등급'];
+    const headers = ['No', '지문', '단어수', '문장수', '평균문장길이', 'Lexile', 'AR등급', '추천단어'];
     const rows = history.map((h, i) => [
       i + 1,
       h.preview,
@@ -9,6 +9,7 @@ export default function AnalysisHistory({ history, onClear, onRemove }) {
       h.avgSentenceLength,
       h.lexile,
       h.arLevel,
+      h.studyWords || '',
     ]);
 
     const tsv = [headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
@@ -55,6 +56,7 @@ export default function AnalysisHistory({ history, onClear, onRemove }) {
               <th className="text-right py-2 px-2 text-gray-500 font-medium">평균문장길이</th>
               <th className="text-right py-2 px-2 text-gray-500 font-medium">Lexile</th>
               <th className="text-right py-2 px-2 text-gray-500 font-medium">AR</th>
+              <th className="text-left py-2 px-2 text-gray-500 font-medium">추천단어</th>
               <th className="py-2 px-2"></th>
             </tr>
           </thead>
@@ -68,6 +70,7 @@ export default function AnalysisHistory({ history, onClear, onRemove }) {
                 <td className="py-2 px-2 text-right text-gray-700">{h.avgSentenceLength}</td>
                 <td className="py-2 px-2 text-right text-gray-700">{h.lexile}</td>
                 <td className="py-2 px-2 text-right text-gray-700">{h.arLevel}</td>
+                <td className="py-2 px-2 text-gray-500 max-w-[200px] truncate text-xs">{h.studyWords || '—'}</td>
                 <td className="py-2 px-2">
                   <button
                     onClick={() => onRemove(h.id)}
