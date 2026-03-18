@@ -5,6 +5,7 @@ import { estimateLexileScore } from './lexileEstimator';
 import { estimateArLevel } from './arEstimator';
 import { extractKeywords } from './keywords';
 import { extractExpressions } from './expressions';
+import { extractStudyWords } from './studyWords';
 
 export function analyze(text) {
   if (!text || !text.trim()) return null;
@@ -29,6 +30,8 @@ export function analyze(text) {
 
   const expressions = extractExpressions(stats.sentences);
 
+  const studyWords = extractStudyWords(stats.words);
+
   return {
     passageStats: {
       wordCount: stats.wordCount,
@@ -44,5 +47,6 @@ export function analyze(text) {
     arLevel,
     keywords,
     expressions,
+    studyWords,
   };
 }

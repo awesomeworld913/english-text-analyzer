@@ -5,6 +5,7 @@ import PassageLengthCard from './PassageLengthCard';
 import ReadabilityCard from './ReadabilityCard';
 import KeywordsCard from './KeywordsCard';
 import KeyExpressionsCard from './KeyExpressionsCard';
+import StudyWordsCard from './StudyWordsCard';
 
 export default function AnalysisResults({ results }) {
   if (!results) {
@@ -41,6 +42,9 @@ export default function AnalysisResults({ results }) {
         <KeywordsCard data={results.keywords} />
         <KeyExpressionsCard data={results.expressions} />
       </div>
+
+      {/* Study words */}
+      <StudyWordsCard data={results.studyWords} />
     </div>
   );
 }

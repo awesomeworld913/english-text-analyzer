@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import TextInput from './components/TextInput';
 import AnalysisResults from './components/AnalysisResults';
+import AnalysisHistory from './components/AnalysisHistory';
 import CurriculumCheckCard from './components/CurriculumCheckCard';
 import { analyze } from './analysis';
 import { getCurriculumUnits, checkAgainstCurriculum } from './analysis/curriculumChecker';
@@ -12,6 +13,7 @@ function App() {
   const [curriculumResult, setCurriculumResult] = useState(null);
   const [selectedUnit, setSelectedUnit] = useState('');
   const [currentText, setCurrentText] = useState('');
+  const [history, setHistory] = useState([]);
 
   const handleAnalyze = (text) => {
     setCurrentText(text);
@@ -22,6 +24,20 @@ function App() {
     }
     const analysisResults = analyze(text);
     setResults(analysisResults);
+
+    // 이력에 추가
+    if (analysisResults) {
+      const preview = text.trim().slice(0, 40) + (text.trim().length > 40 ? '...' : '');
+      setHistory(prev => [...prev, {
+        id: Date.now(),
+        preview,
+        wordCount: analysisResults.passageStats.wordCount,
+        sentenceCount: analysisResults.passageStats.sentenceCount,
+        avgSentenceLength: analysisResults.passageStats.avgSentenceLength,
+        lexile: analysisResults.lexileScore.label,
+        arLevel: analysisResults.arLevel.level,
+      }]);
+    }
 
     // Also run curriculum check if unit is selected
     if (selectedUnit) {
@@ -106,6 +122,15 @@ function App() {
             <AnalysisResults results={results} />
           </div>
         </div>
+
+        {/* Analysis History & Download */}
+        {history.length > 0 && (
+          <AnalysisHistory
+            history={history}
+            onClear={() => setHistory([])}
+            onRemove={(id) => setHistory(prev => prev.filter(h => h.id !== id))}
+          />
+        )}
       </main>
 
       <footer className="border-t border-gray-200 mt-12">
